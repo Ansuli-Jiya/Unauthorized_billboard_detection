@@ -29,4 +29,4 @@ RUN mkdir -p uploads .ultralytics && chmod -R 775 uploads .ultralytics
 EXPOSE 8000
 
 # Start with a single worker to reduce memory; bind to $PORT and allow long cold start
-CMD ["sh","-c","gunicorn -w 1 --timeout 180 -b 0.0.0.0:${PORT} app_flask:app"]
+CMD ["sh","-c","gunicorn -w 1 --timeout 600 -b 0.0.0.0:${PORT} app_flask:app"]
