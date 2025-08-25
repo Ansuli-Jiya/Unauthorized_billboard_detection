@@ -1,0 +1,4 @@
+train: C:/Users/KIIT/Desktop/testing/detector/train/image
+val: C:/Users/KIIT/Desktop/testing/detector/val/images
+nc: 1  # Number of classes (1 for billboard)
+names: ['billboard']  # Class names

@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billboard Violation Detector</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .container { max-width: 800px; margin-top: 50px; }
+        .form-label { font-weight: bold; }
+        #result { margin-top: 20px; }
+        .tab-content { margin-top: 20px; }
+        .input-group .btn { z-index: 0; }
+        .location-status { transition: all 0.3s ease; }
+        #mapContainer { cursor: crosshair; }
+        #mapContainer:hover { background-color: #e9ecef; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Billboard Violation Detector</h1>
+
+        <!-- Nav Tabs -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="detect-tab" data-bs-toggle="tab" data-bs-target="#detect" type="button" role="tab" aria-controls="detect" aria-selected="true">Detect Violation</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="submit-tab" data-bs-toggle="tab" data-bs-target="#submit" type="button" role="tab" aria-controls="submit" aria-selected="false" disabled>Submit Report</button>
+            </li>
+                         <li class="nav-item" role="presentation">
+                 <button class="nav-link" id="my-reports-tab" data-bs-toggle="tab" data-bs-target="#my-reports" type="button" role="tab" aria-controls="my-reports" aria-selected="false">My Reports</button>
+             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="advanced-analysis-tab" data-bs-toggle="tab" data-bs-target="#advanced-analysis" type="button" role="tab" aria-controls="advanced-analysis" aria-selected="false">Advanced Analysis</button>
+            </li>
+
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="myTabContent">
+            <!-- Detect Tab -->
+            <div class="tab-pane fade show active" id="detect" role="tabpanel" aria-labelledby="detect-tab">
+                <form id="uploadForm" enctype="multipart/form-data" class="border p-4 bg-white rounded shadow mt-4">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Upload Billboard Image or Video:</label>
+                        <input type="file" class="form-control" id="file" name="file" accept="image/*,video/*" capture="environment" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="lat" class="form-label">Latitude:</label>
+                            <div class="input-group">
+                            <input type="number" class="form-control" id="lat" name="lat" step="any" required>
+                                <button type="button" class="btn btn-outline-secondary" onclick="getCurrentLocation()">
+                                    <i class="fas fa-location-arrow"></i> Get Location
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="long" class="form-label">Longitude:</label>
+                            <div class="input-group">
+                            <input type="number" class="form-control" id="long" name="long" step="any" required>
+                                <button type="button" class="btn btn-outline-info" onclick="openMapPicker()">
+                                    <i class="fas fa-map-marker-alt"></i> Pick on Map
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                Use "Get Location" for automatic GPS or "Pick on Map" to select manually
+                            </small>
+                            <div id="locationStatus" class="text-success" style="display: none;">
+                                <i class="fas fa-check-circle"></i> Location detected successfully!
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Detect Violation</button>
+                </form>
+                <div id="result" class="alert alert-info" role="alert" style="display: none;"></div>
+            </div>
+
+            <!-- Submit Tab -->
+            <div class="tab-pane fade" id="submit" role="tabpanel" aria-labelledby="submit-tab">
+                <form id="submissionForm" class="border p-4 bg-white rounded shadow mt-4" style="display: none;">
+                    <h3 class="mb-3">Submit Violation Report</h3>
+                    <input type="hidden" id="mediaPath" name="mediaPath">
+                    <input type="hidden" id="subLat" name="lat">
+                    <input type="hidden" id="subLong" name="long">
+                    <input type="hidden" id="reasons" name="violations">
+                    <input type="hidden" id="userId" name="userId" value="user123">
+                    <input type="hidden" id="status" name="status" value="Pending">
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">Your Name (Optional):</label>
+                        <input type="text" class="form-control" id="userName" name="userName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">Your Email (Optional):</label>
+                        <input type="email" class="form-control" id="userEmail" name="userEmail">
+                     </div>
+                     
+                                           <!-- User ID Display -->
+                      <div class="alert alert-info">
+                          <div class="d-flex justify-content-between align-items-center">
+                              <div>
+                                  <strong><i class="fas fa-id-card"></i> Your Report Tracking ID:</strong>
+                                  <span class="badge bg-primary fs-6 ms-2" id="displayUserId" style="cursor: pointer; user-select: all;" title="Click to select all text" onclick="selectUserId()">user123</span>
+                              </div>
+                                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="copyUserId()">
+                                   <i class="fas fa-copy"></i> Copy ID
+                               </button>
+                          </div>
+                          <small class="text-muted mt-2 d-block">
+                              <i class="fas fa-info-circle"></i> 
+                              Save this ID to track your report status in the "My Reports" tab. 
+                              <strong>Click the ID badge to select all text, or use the buttons above.</strong>
+                          </small>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Submit to Authorities</button>
+                </form>
+                <div id="submissionResult" class="alert alert-success mt-3" role="alert" style="display: none;"></div>
+            </div>
+
+            <!-- My Reports Tab -->
+            <div class="tab-pane fade" id="my-reports" role="tabpanel" aria-labelledby="my-reports-tab">
+                <div class="border p-4 bg-white rounded shadow mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h3 class="mb-0">My Violation Reports</h3>
+                            <small class="text-muted">
+                                <i class="fas fa-id-card"></i> 
+                                Track all your submitted violation reports using your User ID
+                            </small>
+                        </div>
+                        <button class="btn btn-outline-primary" onclick="refreshMyReports()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    
+                    <!-- Instructions Box -->
+                    <div class="alert alert-info mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-lightbulb fa-2x text-warning me-3 mt-1"></i>
+                            <div>
+                                <h6 class="alert-heading">How to Track Your Reports:</h6>
+                                <ol class="mb-0">
+                                    <li>Submit a violation report in the "Detect Violation" tab</li>
+                                    <li>Save the <strong>User ID</strong> shown after submission</li>
+                                    <li>Enter that ID below and click "View My Reports"</li>
+                                    <li>Track your report status and view all details</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User ID Input -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="userReportId" placeholder="Enter your User ID (e.g., user123)" value="user123">
+                            <button class="btn btn-primary" onclick="loadMyReports()">
+                                <i class="fas fa-search"></i> View My Reports
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Use the same User ID you used when submitting reports
+                        </small>
+                    </div>
+                    
+                    <!-- Reports Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Report ID</th>
+                                    <th>Image</th>
+                                    <th>Location</th>
+                                    <th>Violations</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myReportsTableBody">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">
+                                        <i class="fas fa-search fa-2x mb-2"></i>
+                                        <p>Enter your User ID and click "View My Reports" to see your submissions</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- No Reports Message -->
+                    <div id="noReportsMessage" class="text-center text-muted" style="display: none;">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <h5>No Reports Found</h5>
+                        <p>You haven't submitted any violation reports yet.</p>
+                        <p>Go to the "Detect Violation" tab to submit your first report!</p>
+                                         </div>
+                 </div>
+             </div>
+             
+             <!-- Advanced Analysis Tab -->
+            <div class="tab-pane fade" id="advanced-analysis" role="tabpanel" aria-labelledby="advanced-analysis-tab">
+                <div class="border p-4 bg-white rounded shadow mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h3 class="mb-0">Advanced Violation Analysis</h3>
+                            <small class="text-muted">
+                                <i class="fas fa-chart-line"></i> Detailed analysis of placement, zoning, and permits
+                            </small>
+                        </div>
+                    </div>
+
+                    <div id="advancedAnalysisResults" class="text-center text-muted">
+                        <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                        <h5>No Analysis Data Available</h5>
+                        <p>Complete detection with coordinates to see details here.</p>
+                        <button class="btn btn-primary" onclick="$('#detect-tab').tab('show')">
+                            <i class="fas fa-search"></i> Detect Violations Now
+                        </button>
+                    </div>
+
+                    <div id="detailedAnalysis" style="display:none;">
+                        <div class="card mb-3">
+                            <div class="card-header"><h6 class="mb-0"><i class="fas fa-star text-warning"></i> Placement Score</h6></div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 text-center">
+                                        <div id="placementScoreCircle" class="display-4 fw-bold text-success">100</div>
+                                        <div class="text-muted">/ 100</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div id="placementScoreDetails"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-map-marker-alt text-primary"></i> Placement Issues</h6>
+                                <div id="zoningAnalysisDetails"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-file-contract text-info"></i> Permit Analysis</h6>
+                                <div id="permitAnalysisDetails"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+    <!-- Map Picker Modal -->
+    <div class="modal fade" id="mapPickerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pick Location on Map</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="addressSearch" placeholder="Search for address or place...">
+                            <button class="btn btn-outline-primary" onclick="searchAddress()">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+                    <div id="mapContainer" style="height: 400px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-map fa-3x mb-3"></i>
+                            <p>Map will load here. Click anywhere to select location.</p>
+                            <p><small>Note: This is a placeholder. In production, integrate with Google Maps or OpenStreetMap.</small></p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <p><strong>Selected Coordinates:</strong></p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Latitude:</label>
+                                <input type="number" class="form-control" id="mapLat" step="any" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Longitude:</label>
+                                <input type="number" class="form-control" id="mapLong" step="any" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmMapLocation()">Use This Location</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and Custom JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- <script>
+        let detectionData = {};
+
+        $('#uploadForm').submit(function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            $.ajax({
+                url: '/api/check-violations',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    if (response.error) {
+                        $('#result').html('<p>Error: ' + response.error + '</p>').addClass('alert-danger').show();
+                    } else {
+                        var html = '<strong>Billboard Status:</strong> ' + response.result;
+                        if (response.result === 'violation') {
+                            html += '<ul class="list-group mt-2">';
+                            response.reasons.forEach(function(reason) {
+                                html += '<li class="list-group-item">' + reason + '</li>';
+                            });
+                            html += '</ul>';
+                            // Store detection data
+                            detectionData = {
+                                mediaPath: response.media_path,
+                                lat: $('#lat').val(),
+                                long: $('#long').val(),
+                                reasons: response.reasons
+                            };
+                            // Enable and switch to submit tab
+                            $('#submit-tab').prop('disabled', false).tab('show');
+                            $('#submissionForm').show();
+                            $('#mediaPath').val(detectionData.mediaPath);
+                            $('#subLat').val(detectionData.lat);
+                            $('#subLong').val(detectionData.long);
+                            $('#reasons').val(JSON.stringify(detectionData.reasons));
+                        } else {
+                            $('#submit-tab').prop('disabled', true);
+                            $('#submit').removeClass('show active');
+                            $('#detect').addClass('show active');
+                            $('#submissionForm').hide();
+                        }
+                        $('#result').html(html).removeClass('alert-danger').addClass('alert-info').show();
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Detect Error:', status, error);
+                    $('#result').html('<p>An error occurred during detection.</p>').addClass('alert-danger').show();
+                }
+            });
+        });
+
+        $('#submissionForm').submit(function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            console.log('Submitting Form Data:', {
+                mediaPath: $('#mediaPath').val(),
+                lat: $('#subLat').val(),
+                long: $('#subLong').val(),
+                reasons: $('#reasons').val(),
+                userName: $('#userName').val(),
+                userEmail: $('#userEmail').val()
+            });
+            $.ajax({
+                url: '/api/submit-report',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    if (response.error) {
+                        $('#submissionResult').html('<p>Error: ' + response.error + '</p>').addClass('alert-danger').show();
+                    } else {
+                    $('#submissionResult').html('<p>Report submitted successfully! Status: Pending</p>').removeClass('alert-danger').addClass('alert-success').show();
+                    
+                    // Auto-switch to My Reports tab and load reports
+                    setTimeout(() => {
+                        $('#my-reports-tab').tab('show');
+                        loadMyReports();
+                    }, 2000);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Submit Error:', status, error);
+                    $('#submissionResult').html('<p>An error occurred during submission.</p>').addClass('alert-danger').show();
+                }
+            });
+        });
+    </script> -->
+    <script>
+    let detectionData = {};
+    let lastDetectionResponse = null;
+    
+    // Location detection functions
+    function getCurrentLocation() {
+        const locationStatus = document.getElementById('locationStatus');
+        const latInput = document.getElementById('lat');
+        const longInput = document.getElementById('long');
+        
+        locationStatus.style.display = 'none';
+        
+        if (navigator.geolocation) {
+            // Show loading state
+            locationStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting your location...';
+            locationStatus.className = 'text-info';
+            locationStatus.style.display = 'block';
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const long = position.coords.longitude;
+                    
+                    // Update form fields
+                    latInput.value = lat.toFixed(6);
+                    longInput.value = long.toFixed(6);
+                    
+                    // Show success message
+                    locationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Location detected successfully!';
+                    locationStatus.className = 'text-success';
+                    
+                    // Get address from coordinates
+                    getAddressFromCoordinates(lat, long);
+                },
+                function(error) {
+                    let errorMessage = 'Unable to get your location. ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += 'Please allow location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += 'Location information unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += 'Location request timed out.';
+                            break;
+                        default:
+                            errorMessage += 'An unknown error occurred.';
+                    }
+                    
+                    locationStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + errorMessage;
+                    locationStatus.className = 'text-danger';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        } else {
+            locationStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Geolocation is not supported by this browser.';
+            locationStatus.className = 'text-danger';
+            locationStatus.style.display = 'block';
+        }
+    }
+    
+    function openMapPicker() {
+        // For now, we'll use a simple coordinate picker
+        // In production, integrate with Google Maps or OpenStreetMap
+        const modal = new bootstrap.Modal(document.getElementById('mapPickerModal'));
+        modal.show();
+        
+        // Set default coordinates (user's current location if available)
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                document.getElementById('mapLat').value = position.coords.latitude.toFixed(6);
+                document.getElementById('mapLong').value = position.coords.longitude.toFixed(6);
+            });
+        }
+        
+        // Add click handler to map container
+        const mapContainer = document.getElementById('mapContainer');
+        mapContainer.onclick = function(e) {
+            // Simulate map click - in production this would get actual map coordinates
+            const rect = mapContainer.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Convert click position to approximate coordinates (demo purposes)
+            // In production, use actual map API to get coordinates
+            const baseLat = parseFloat(document.getElementById('mapLat').value) || 40.7128;
+            const baseLong = parseFloat(document.getElementById('mapLong').value) || -74.0060;
+            
+            // Add small offset based on click position
+            const latOffset = (y - rect.height/2) * 0.0001;
+            const longOffset = (x - rect.width/2) * 0.0001;
+            
+            document.getElementById('mapLat').value = (baseLat + latOffset).toFixed(6);
+            document.getElementById('mapLong').value = (baseLong + longOffset).toFixed(6);
+            
+            // Show visual feedback
+            mapContainer.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+                mapContainer.style.backgroundColor = '#f8f9fa';
+            }, 500);
+        };
+    }
+    
+    function searchAddress() {
+        const address = document.getElementById('addressSearch').value;
+        if (!address) return;
+        
+        // In production, use Google Geocoding API or OpenStreetMap Nominatim
+        alert('Address search functionality will be implemented with map integration.\n\nFor now, you can manually enter coordinates or use "Get Location" button.');
+    }
+    
+    function confirmMapLocation() {
+        const mapLat = document.getElementById('mapLat').value;
+        const mapLong = document.getElementById('mapLong').value;
+        
+        if (mapLat && mapLong) {
+            document.getElementById('lat').value = mapLat;
+            document.getElementById('long').value = mapLong;
+            
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('mapPickerModal')).hide();
+            
+            // Show success message
+            const locationStatus = document.getElementById('locationStatus');
+            locationStatus.innerHTML = '<i class="fas fa-check-circle"></i> Location selected from map!';
+            locationStatus.className = 'text-success';
+            locationStatus.style.display = 'block';
+        } else {
+            alert('Please select a valid location on the map.');
+        }
+    }
+    
+    function getAddressFromCoordinates(lat, long) {
+        // In production, use reverse geocoding API to get address
+        // For now, just show coordinates
+        console.log(`Coordinates: ${lat}, ${long}`);
+    }
+
+    // User Reports Functions
+    function loadMyReports() {
+        const userId = document.getElementById('userReportId').value.trim();
+        if (!userId) {
+            alert('Please enter a User ID');
+            return;
+        }
+        
+        console.log('Loading reports for user:', userId);
+        
+        // Show loading state
+        const tbody = document.getElementById('myReportsTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading your reports...</p></td></tr>';
+        
+        // Fetch user reports
+        $.ajax({
+            url: `/api/user-reports/${userId}`,
+            type: 'GET',
+            success: function(response) {
+                console.log('Reports loaded successfully:', response);
+                displayMyReports(response, userId);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading reports:', xhr.status, status, error);
+                if (xhr.status === 404) {
+                    // No reports found
+                    console.log('No reports found for user:', userId);
+                    document.getElementById('noReportsMessage').style.display = 'block';
+                    document.querySelector('.table-responsive').style.display = 'none';
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger"><i class="fas fa-exclamation-triangle fa-2x"></i><p class="mt-2">Error loading reports. Please try again.</p></td></tr>';
+                }
+            }
+        });
+    }
+    
+    function displayMyReports(reports, userId) {
+        console.log('Displaying reports:', reports);
+        
+        const tbody = document.getElementById('myReportsTableBody');
+        const noReportsMessage = document.getElementById('noReportsMessage');
+        const tableContainer = document.querySelector('.table-responsive');
+        
+        if (!reports || reports.length === 0) {
+            console.log('No reports to display');
+            noReportsMessage.style.display = 'block';
+            tableContainer.style.display = 'none';
+            return;
+        }
+        
+        console.log(`Displaying ${reports.length} reports`);
+        noReportsMessage.style.display = 'none';
+        tableContainer.style.display = 'block';
+        
+        tbody.empty();
+        
+        reports.forEach((report, index) => {
+            console.log(`Processing report ${index + 1}:`, report);
+            const row = `
+                <tr>
+                    <td><strong>#${report.id}</strong></td>
+                    <td>
+                        ${report.input_file ? 
+                            `<img src="/uploads/${report.input_file}" class="img-thumbnail" style="max-width: 80px; max-height: 60px;" alt="Report Image">` : 
+                            '<span class="text-muted">No Image</span>'
+                        }
+                    </td>
+                    <td>
+                        <small>
+                            <i class="fas fa-map-marker-alt text-primary"></i><br>
+                            ${report.lat.toFixed(6)}, ${report.long.toFixed(6)}
+                        </small>
+                    </td>
+                    <td>
+                        <div class="small">
+                            ${Array.isArray(report.violations) ? 
+                                report.violations.map(v => `<span class="badge bg-danger me-1">${v}</span>`).join('') : 
+                                '<span class="text-muted">No violations</span>'
+                            }
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge ${getStatusBadgeClass(report.status)}">${report.status}</span>
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i><br>
+                            Just submitted
+                        </small>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewMyReportDetails(${report.id}, '${userId}')">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+        
+        console.log('Reports display completed');
+    }
+    
+    function getStatusBadgeClass(status) {
+        switch(status) {
+            case 'Pending': return 'bg-warning';
+            case 'Approved': return 'bg-success';
+            case 'Rejected': return 'bg-danger';
+            default: return 'bg-secondary';
+        }
+    }
+    
+    function refreshMyReports() {
+        const userId = document.getElementById('userReportId').value.trim();
+        if (userId) {
+            loadMyReports();
+        }
+    }
+    
+    function viewMyReportDetails(reportId, userId) {
+        // In a full implementation, you could show detailed report view
+        // For now, we'll show a simple alert with report info
+        alert(`Report #${reportId} Details\n\nUser ID: ${userId}\n\nThis feature will show detailed report information including:\n- Full size images\n- Detailed violation analysis\n- Status updates\n- Admin notes\n\nComing soon!`);
+    }
+    
+    function copyUserId() {
+        const userId = document.getElementById('displayUserId').textContent;
+        
+        // Try modern clipboard API first
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(userId).then(function() {
+                showCopySuccess();
+            }).catch(function(err) {
+                // Fallback to manual copy method
+                fallbackCopyTextToClipboard(userId);
+            });
+        } else {
+            // Fallback for older browsers or non-HTTPS
+            fallbackCopyTextToClipboard(userId);
+        }
+    }
+    
+    function fallbackCopyTextToClipboard(text) {
+        try {
+            // Create a temporary textarea element
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Make it invisible
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            
+            // Focus and select the text
+            textArea.focus();
+            textArea.select();
+            
+            // Try to copy
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                showCopySuccess();
+            } else {
+                showCopyManual(text);
+            }
+        } catch (err) {
+            showCopyManual(text);
+        }
+    }
+    
+    function showCopySuccess() {
+        const copyBtn = event.target.closest('button');
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        copyBtn.classList.remove('btn-outline-primary');
+        copyBtn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('btn-success');
+            copyBtn.classList.add('btn-outline-primary');
+        }, 2000);
+    }
+    
+    function showCopyManual(text) {
+        // Show manual copy instructions
+        const copyBtn = event.target.closest('button');
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-hand-pointer"></i> Select & Copy';
+        copyBtn.classList.remove('btn-outline-primary');
+        copyBtn.classList.add('btn-warning');
+        
+        // Create a temporary input field for manual selection
+        const tempInput = document.createElement('input');
+        tempInput.value = text;
+        tempInput.style.position = 'fixed';
+        tempInput.style.left = '-9999px';
+        document.body.appendChild(tempInput);
+        
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999); // For mobile devices
+        
+        // Show alert with instructions
+        alert(`User ID: ${text}\n\nPlease manually copy this ID:\n1. Select the text above\n2. Press Ctrl+C (or Cmd+C on Mac)\n3. Paste it where needed`);
+        
+        document.body.removeChild(tempInput);
+        
+        // Reset button after 3 seconds
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('btn-warning');
+            copyBtn.classList.add('btn-outline-primary');
+        }, 3000);
+    }
+    
+    function selectUserId() {
+        const userIdElement = document.getElementById('displayUserId');
+        const userId = userIdElement.textContent;
+        
+        // Create a temporary input for selection
+        const tempInput = document.createElement('input');
+        tempInput.value = userId;
+        tempInput.style.position = 'fixed';
+        tempInput.style.left = '-9999px';
+        document.body.appendChild(tempInput);
+        
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999);
+        
+        // Show success message
+        const selectBtn = event.target.closest('button');
+        const originalText = selectBtn.innerHTML;
+        selectBtn.innerHTML = '<i class="fas fa-check"></i> Selected!';
+        selectBtn.classList.remove('btn-outline-secondary');
+        selectBtn.classList.add('btn-success');
+        
+        // Show instructions
+        setTimeout(() => {
+            alert(`User ID "${userId}" is now selected!\n\nTo copy:\n1. Press Ctrl+C (or Cmd+C on Mac)\n2. Or right-click and select "Copy"\n3. Then paste it where needed`);
+        }, 100);
+        
+        // Reset button after 3 seconds
+        setTimeout(() => {
+            selectBtn.innerHTML = originalText;
+            selectBtn.classList.remove('btn-success');
+            selectBtn.classList.add('btn-outline-secondary');
+        }, 3000);
+        
+        // Remove temp input after a delay
+        setTimeout(() => {
+            document.body.removeChild(tempInput);
+        }, 1000);
+    }
+    
+    function viewMyReportsNow() {
+        // Switch to My Reports tab and load reports
+        $('#my-reports-tab').tab('show');
+        loadMyReports();
+    }
+
+    $('#uploadForm').submit(function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        $.ajax({
+            url: '/api/check-violations',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(response) {
+                if (response.error) {
+                    $('#result').html('<p>Error: ' + response.error + '</p>').addClass('alert-danger').show();
+                } else {
+                    lastDetectionResponse = response;
+                    var html = '<strong>Billboard Status:</strong> ' + response.verdict;
+                     
+                     // Add Placement Score
+                     if (response.placement_score !== undefined) {
+                         const scoreClass = response.placement_score >= 80 ? 'text-success' : 
+                                          response.placement_score >= 60 ? 'text-warning' : 'text-danger';
+                         html += `<div class="mt-2"><strong>Placement Score:</strong> <span class="${scoreClass}">${response.placement_score}/100</span></div>`;
+                     }
+                     
+                     // Add Permit Status
+                     if (response.permit_status) {
+                         const permitClass = response.permit_status === 'Permitted' ? 'text-success' : 'text-warning';
+                         html += `<div><strong>Permit Status:</strong> <span class="${permitClass}">${response.permit_status}</span></div>`;
+                     }
+                     
+                     if (response.verdict === 'Violating') {
+                        html += '<ul class="list-group mt-2">';
+                         response.violations.forEach(function(violation) {
+                             html += '<li class="list-group-item">' + violation + '</li>';
+                        });
+                        html += '</ul>';
+                         
+                                                  // Add dimensions if available
+                         if (response.width_m !== undefined && response.height_m !== undefined) {
+                             html += `<p><strong>Billboard Size:</strong> ${response.width_m.toFixed(2)} m (W) × ${response.height_m.toFixed(2)} m (H)`;
+                             if (response.width && response.height) {
+                                 html += ` <span class="text-muted">[${response.width}px × ${response.height}px]</span>`;
+                             }
+                             html += `</p>`;
+                         } else if (response.width && response.height) {
+                             html += '<p><strong>Billboard Size:</strong> ' + response.width + 'px (W) × ' + response.height + 'px (H)</p>';
+                         }
+                         
+                         // Show backend notes (e.g., OCR availability / previews)
+                         if (response.notes && Array.isArray(response.notes) && response.notes.length > 0) {
+                             html += '<div class="mt-2"><strong>Notes:</strong><ul class="list-group list-group-flush">';
+                             response.notes.forEach(function(n){
+                                 html += '<li class="list-group-item small text-muted">' + n + '</li>';
+                             });
+                             html += '</ul></div>';
+                         }
+                         
+                         // Add detailed violation breakdown
+                         html += '<div class="mt-3"><h6><strong>Detailed Violation Analysis:</strong></h6>';
+                         
+                         // Geolocation violations
+                         if (response.geolocation_violations && response.geolocation_violations.length > 0) {
+                             html += '<div class="mb-2"><strong class="text-primary">🌍 Placement Issues:</strong><ul class="list-group list-group-flush">';
+                             response.geolocation_violations.forEach(function(violation) {
+                                 html += '<li class="list-group-item list-group-item-warning">' + violation + '</li>';
+                             });
+                             html += '</ul></div>';
+                         }
+                         
+                         // Zoning section removed per requirements
+                         
+                         // Permit violations
+                         if (response.permitted_location_violations && response.permitted_location_violations.length > 0) {
+                             html += '<div class="mb-2"><strong class="text-warning">📋 Permit Issues:</strong><ul class="list-group list-group-flush">';
+                             response.permitted_location_violations.forEach(function(violation) {
+                                 html += '<li class="list-group-item list-group-item-warning">' + violation + '</li>';
+                             });
+                             html += '</ul></div>';
+                         }
+                         
+                         html += '</div>';
+                         
+                        // Add button to view advanced analysis
+                        html += '<div class="mt-3 text-center">';
+                        html += '<button class="btn btn-info" onclick="showAdvancedAnalysis()">';
+                        html += '<i class="fas fa-chart-line"></i> View Advanced Analysis';
+                        html += '</button>';
+                        html += '</div>';
+                         
+
+                         
+                        // Store detection data
+                        detectionData = {
+                            mediaPath: response.input_file,
+                            lat: $('#lat').val(),
+                            long: $('#long').val(),
+                            reasons: response.violations,
+                            width: response.width,
+                            height: response.height
+                        };
+                        
+                        // Auto-populate user ID in My Reports tab
+                        document.getElementById('userReportId').value = 'user123';
+                        // Enable submit tab but do NOT auto-switch; user will click it
+                        $('#submit-tab').prop('disabled', false);
+                        $('#submissionForm').hide();
+                    } else {
+                        $('#submit-tab').prop('disabled', true);
+                        $('#submit').removeClass('show active');
+                        $('#detect').addClass('show active');
+                        $('#submissionForm').hide();
+                    }
+                    $('#result').html(html).removeClass('alert-danger').addClass('alert-info').show();
+                    
+                    // Update Advanced Analysis tab with same response
+                    try { updateAdvancedAnalysis(response); } catch (e) { console.warn('Advanced analysis update failed', e); }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Detect Error:', status, error);
+                $('#result').html('<p>An error occurred during detection.</p>').addClass('alert-danger').show();
+            }
+        });
+    });
+
+    // When user clicks Submit tab, populate the form only if a violation exists
+    $('#submit-tab').on('shown.bs.tab', function () {
+        if (detectionData && detectionData.mediaPath && Array.isArray(detectionData.reasons) && detectionData.reasons.length > 0) {
+            $('#submissionForm').show();
+            $('#mediaPath').val(detectionData.mediaPath);
+            $('#subLat').val(detectionData.lat);
+            $('#subLong').val(detectionData.long);
+            $('#reasons').val(JSON.stringify(detectionData.reasons));
+        } else {
+            // No violation data; keep the form hidden and nudge user
+            $('#submissionForm').hide();
+            alert('Please run detection and ensure a violation is found before submitting a report.');
+            // Switch back to Detect tab
+            $('#detect-tab').tab('show');
+        }
+    });
+
+    $('#submissionForm').submit(function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        console.log('Submitting Form Data:', {
+            mediaPath: $('#mediaPath').val(),
+            lat: $('#subLat').val(),
+            long: $('#subLong').val(),
+            reasons: $('#reasons').val(),
+            userName: $('#userName').val(),
+            userEmail: $('#userEmail').val()
+        });
+        $.ajax({
+            url: '/api/submit-report',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(response) {
+                if (response.error) {
+                    $('#submissionResult').html('<p>Error: ' + response.error + '</p>').addClass('alert-danger').show();
+                } else {
+                    // Show success with User ID prominently
+                    const userId = document.getElementById('displayUserId').textContent;
+                    $('#submissionResult').html(`
+                        <div class="text-center">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h4 class="text-success">Report Submitted Successfully!</h4>
+                            <p class="mb-3">Your violation report has been submitted to authorities.</p>
+                            
+                            <div class="alert alert-warning">
+                                <strong><i class="fas fa-id-card"></i> Save Your Tracking ID:</strong>
+                                <span class="badge bg-primary fs-5 ms-2">${userId}</span>
+                                <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyUserId()">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            
+                            <p class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                Use this ID in the "My Reports" tab to track your report status
+                            </p>
+                            
+                            <button class="btn btn-primary mt-2" onclick="viewMyReportsNow()">
+                                <i class="fas fa-eye"></i> View My Reports Now
+                            </button>
+                        </div>
+                    `).removeClass('alert-danger').addClass('alert-success').show();
+                    
+                    // Auto-populate user ID in My Reports tab
+                    document.getElementById('userReportId').value = userId;
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Submit Error:', status, error);
+                $('#submissionResult').html('<p>An error occurred during submission.</p>').addClass('alert-danger').show();
+            }
+        });
+    });
+    
+
+    function updateAdvancedAnalysis(response) {
+        if (!response) return;
+        
+        // Hide the "no data" message and show detailed analysis
+        document.getElementById('advancedAnalysisResults').style.display = 'none';
+        document.getElementById('detailedAnalysis').style.display = 'block';
+        
+        // Update Placement Score
+        if (response.placement_score !== undefined) {
+            const scoreElement = document.getElementById('placementScoreCircle');
+            const score = response.placement_score;
+            
+            // Update score display
+            scoreElement.textContent = score;
+            
+            // Update color based on score
+            if (score >= 80) {
+                scoreElement.className = 'display-4 fw-bold text-success';
+            } else if (score >= 60) {
+                scoreElement.className = 'display-4 fw-bold text-warning';
+            } else {
+                scoreElement.className = 'display-4 fw-bold text-danger';
+            }
+            
+            // Update placement score details
+            const detailsElement = document.getElementById('placementScoreDetails');
+            let detailsHtml = '<h6>Score Breakdown:</h6>';
+            
+            if (response.geolocation_violations && response.geolocation_violations.length > 0) {
+                detailsHtml += '<div class="text-danger mb-2">';
+                response.geolocation_violations.forEach(function(violation) {
+                    detailsHtml += `<div><i class="fas fa-times-circle"></i> ${violation}</div>`;
+                });
+                detailsHtml += '</div>';
+            } else {
+                detailsHtml += '<div class="text-success"><i class="fas fa-check-circle"></i> No placement issues detected</div>';
+            }
+            
+            detailsElement.innerHTML = detailsHtml;
+        }
+        
+        // Populate Placement Issues list area
+        (function(){
+            const placementEl = document.getElementById('zoningAnalysisDetails');
+            if (!placementEl) return;
+            if (response.geolocation_violations && response.geolocation_violations.length > 0) {
+                let html = '<ul class="list-group mb-3">';
+                response.geolocation_violations.forEach(function(v){
+                    html += `<li class="list-group-item list-group-item-warning"><i class="fas fa-exclamation-triangle"></i> ${v}</li>`;
+                });
+                html += '</ul>';
+                placementEl.innerHTML = html;
+            } else {
+                placementEl.innerHTML = '<div class="text-success"><i class="fas fa-check-circle"></i> No placement issues detected</div>';
+            }
+        })();
+        
+        // Update Permit Analysis
+        if (response.permit_status) {
+            const permitElement = document.getElementById('permitAnalysisDetails');
+            let permitHtml = `<h6>Permit Status: <span class="badge ${response.permit_status === 'Permitted' ? 'bg-success' : 'bg-warning'}">${response.permit_status}</span></h6>`;
+            
+            if (response.permitted_location_violations && response.permitted_location_violations.length > 0) {
+                permitHtml += '<div class="text-warning">';
+                response.permitted_location_violations.forEach(function(violation) {
+                    permitHtml += `<div><i class="fas fa-exclamation-triangle"></i> ${violation}</div>`;
+                });
+                permitHtml += '</div>';
+            } else {
+                permitHtml += '<div class="text-success"><i class="fas fa-check-circle"></i> No permit conflicts detected</div>';
+            }
+            
+            permitElement.innerHTML = permitHtml;
+        }
+    }
+    
+    // Function to show advanced analysis tab
+    function showAdvancedAnalysis() {
+        $('#advanced-analysis-tab').tab('show');
+    }
+
+    function downloadReportJson() {
+        try {
+            const data = lastDetectionResponse || {};
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            a.href = url;
+            a.download = `billboard_report_${ts}.json`;
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch(e) {
+            alert('Unable to download report JSON');
+        }
+    }
+</script>
+</body>
+</html>
