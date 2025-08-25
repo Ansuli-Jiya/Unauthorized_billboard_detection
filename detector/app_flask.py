@@ -250,10 +250,10 @@
 #     #             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
 #     #             area = (x2 - x1) * (y2 - y1)
 #     #             if area > max_area:
-#     #                 max_area = area
-#     #                 billboard_box = (x1, y1, x2, y2)
+# #                 max_area = area
+# #                 billboard_box = (x1, y1, x2, y2)
 
-#     # Temporary workaround: Use the largest box of any class if no class 0 is found
+# #     # Temporary workaround: Use the largest box of any class if no class 0 is found
 #     if billboard_box is None:
 #         logger.warning("No billboard (class 0) detected, using largest object as fallback")
 #         for result in results:
@@ -568,6 +568,11 @@ from datetime import datetime
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Health check endpoint for Render
+@app.route('/health')
+def health():
+    return 'ok', 200
 
 # Ensure upload folder exists
 if not os.path.exists(UPLOAD_FOLDER):
