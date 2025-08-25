@@ -10,5 +10,5 @@ services:
         mountPath: /app/uploads
         sizeGB: 1
       - name: yolo-config
-        mountPath: /app/ultralytics_config
+        mountPath: /app/.ultralytics
         sizeGB: 1

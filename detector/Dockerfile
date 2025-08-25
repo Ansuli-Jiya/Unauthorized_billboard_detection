@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=1 \
     TORCH_NUM_THREADS=1 \
-    YOLO_CONFIG_DIR=/app/ultralytics_config
+    YOLO_CONFIG_DIR=/app/.ultralytics
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Ensure runtime dirs exist and are writable
-RUN mkdir -p uploads ultralytics_config && chmod -R 775 uploads ultralytics_config
+RUN mkdir -p uploads .ultralytics && chmod -R 775 uploads .ultralytics
 
 # Render provides PORT env var
 EXPOSE 8000
