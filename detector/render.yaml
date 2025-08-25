@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: billboard-violation-detector
+    env: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /
+    # For Docker, Render builds the image from Dockerfile by default
+    # Ensure uploads directory persists via a disk if needed (optional)
+    disks:
+      - name: uploads
+        mountPath: /app/uploads
+        sizeGB: 1
